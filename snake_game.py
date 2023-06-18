@@ -42,14 +42,19 @@ class SnakeGame:
                       Point(self.head.x - (2 * BLOCK_SIZE), self.head.y)]
         self.score = 0
         self.food = None
+        self.x_index = 0
+        self.y_index = 0
         self._place__food()
 
     def _place__food(self):
-        global x_index, y_index
-        x = x_array[x_index]
-        y = y_array[y_index]
+        x = x_array[self.x_index] * 20
+        y = y_array[self.y_index] * 20
         self.food = Point(x, y)
         if self.food in self.snake:
+            self.score += 1
+            self.x_index = (self.x_index + 1) % len(x_array)
+            self.y_index = (self.y_index + 1) % len(y_array)
+            self.snake.append(self.food)
             self._place__food()
 
     def play_step(self):
@@ -72,17 +77,18 @@ class SnakeGame:
         self._move(self.direction)
         self.snake.insert(0, self.head)
 
-        # Check if game Over
+        # Check if game over
         game_over = False
         if self._is_collision():
             game_over = True
             return game_over, self.score
 
-        # Place new Food or just move
+        # Place new food or just move
         if self.head == self.food:
             self.score += 1
-            x_index = (x_index + 1) % len(x_array)
-            y_index = (y_index + 1) % len(y_array)
+            self.x_index = (self.x_index + 1) % len(x_array)
+            self.y_index = (self.y_index + 1) % len(y_array)
+            self.snake.append(self.food)
             self._place__food()
         else:
             self.snake.pop()
@@ -91,7 +97,7 @@ class SnakeGame:
         self._update_ui()
         self.clock.tick(SPEED)
 
-        # Return game Over and Display Score
+        # Return game over and display score
         return game_over, self.score
 
     def _update_ui(self):
@@ -118,8 +124,12 @@ class SnakeGame:
         self.head = Point(x, y)
 
     def _is_collision(self):
-        # Hit boundary
-        if self.head.x > self.w - BLOCK_SIZE or self.head.x < 0 or self.head.y > self.h - BLOCK_SIZE or self.head.y < 0:
+        if (
+            self.head.x > self.w - BLOCK_SIZE
+            or self.head.x < 0
+            or self.head.y > self.h - BLOCK_SIZE
+            or self.head.y < 0
+        ):
             return True
         if self.head in self.snake[1:]:
             return True
@@ -132,7 +142,7 @@ if __name__ == "__main__":
     # Game loop
     while True:
         game_over, score = game.play_step()
-        if game_over == True:
+        if game_over:
             break
     print('Final Score:', score)
 
