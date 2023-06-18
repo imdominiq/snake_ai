@@ -1,5 +1,4 @@
 import pygame
-import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
@@ -21,6 +20,9 @@ BLACK = (0, 0, 0)
 
 x_array = np.array([5, 10, 15, 20, 25, 30, 0, 4, 8, 12, 16, 19, 23, 27, 31, 3, 7, 11, 14, 18])
 y_array = np.array([2, 5, 8, 12, 15, 18, 21, 25, 28, 32, 7, 10, 13, 16, 19, 22, 26, 29, 1, 4])
+
+x_array_2 = np.array([11, 5, 24, 8, 19, 31, 3, 0, 14, 22, 16, 1, 28, 20, 9, 7, 27, 13, 2, 30])
+y_array_2 = np.array([12, 4, 26, 8, 17, 30, 9, 23, 1, 29, 7, 31, 18, 16, 3, 10, 22, 15, 28, 6])
 
 
 class Direction(Enum):
@@ -45,8 +47,9 @@ class SnakeGame:
                       Point(self.head.x - (2 * BLOCK_SIZE), self.head.y)]
         self.score = 0
         self.food = None
-        self.x_index = 0
-        self.y_index = 0
+        self.superFood= None
+        self.food_index = 0
+        self.superFood_index = 0
         self._place__food()
 
         # Initial game start time and max game time in seconds
@@ -55,17 +58,30 @@ class SnakeGame:
         self.eat_timer = self.game_start_time
         self.eat_timer_max = 5  # 5 seconds timer after eating food
 
+        #time variables
+        self.start_time = time.time()
+        self.elapsed_time = 0
+
     def _place__food(self):
-        x = x_array[self.x_index] * 20
-        y = y_array[self.y_index] * 20
-        self.food = Point(x, y)
+        x1 = x_array[self.food_index] * 20
+        y1 = y_array[self.food_index] * 20
+        self.food = Point(x1, y1)
+        x2 = x_array_2[self.superFood_index] * 20
+        y2 = y_array_2[self.superFood_index] * 20
+        self.superFood = Point(x2, y2)
+
         if self.food in self.snake:
             self.score += 1
-            self.x_index = (self.x_index + 1) % len(x_array)
-            self.y_index = (self.y_index + 1) % len(y_array)
+            self.food_index = (self.food_index + 1)
+
             self.snake.append(self.food)
             self._place__food()
 
+        if self.superFood in self.snake:
+            self.score += 1
+            self.superFood_index = (self.superFood_index + 1)
+            self.snake.append(self.superFood)
+            self._place__food()
     def play_step(self):
         # Collect the user input
         for event in pygame.event.get():
@@ -105,12 +121,15 @@ class SnakeGame:
         # Place new food or just move
         if self.head == self.food:
             self.score += 1
-            self.x_index = (self.x_index + 1) % len(x_array)
-            self.y_index = (self.y_index + 1) % len(y_array)
+            self.food_index = (self.food_index + 1)
             self.snake.append(self.food)
             self._place__food()
-
-            # Reset food timer when food is eaten
+            self.eat_timer = time.time() + 5
+        elif self.head == self.superFood:
+            self.score += 1
+            self.superFood_index = (self.superFood_index + 1)
+            self.snake.append(self.superFood)
+            self._place__food()
             self.eat_timer = time.time() + 5
         else:
             self.snake.pop()
@@ -118,6 +137,14 @@ class SnakeGame:
         # Update UI and clock
         self._update_ui(elapsed_time, elapsed_eat_time)
         self.clock.tick(SPEED)
+
+        #Calculate elapsed time
+        self.elapsed_time = time.time() - self.start_time
+
+        # Check if 5 seconds have passed
+        if self.elapsed_time >= 5:
+            game_over = True
+            return game_over, self.score
 
         # Return game over and display score
         return game_over, self.score
@@ -128,6 +155,7 @@ class SnakeGame:
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
+        pygame.draw.rect(self.display, RED, pygame.Rect(self.superFood.x, self.superFood.y, BLOCK_SIZE, BLOCK_SIZE))
 
         score_text = "Score: " + str(self.score)
         score_surface = font.render(score_text, True, WHITE)
