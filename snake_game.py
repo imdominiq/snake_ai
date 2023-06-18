@@ -3,6 +3,7 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
+import time
 
 pygame.init()
 font_size = 24
@@ -21,11 +22,13 @@ BLACK = (0, 0, 0)
 x_array = np.array([5, 10, 15, 20, 25, 30, 0, 4, 8, 12, 16, 19, 23, 27, 31, 3, 7, 11, 14, 18])
 y_array = np.array([2, 5, 8, 12, 15, 18, 21, 25, 28, 32, 7, 10, 13, 16, 19, 22, 26, 29, 1, 4])
 
+
 class Direction(Enum):
     RIGHT = 1
     LEFT = 2
     UP = 3
     DOWN = 4
+
 
 class SnakeGame:
     def __init__(self, w=640, h=480):
@@ -45,6 +48,12 @@ class SnakeGame:
         self.x_index = 0
         self.y_index = 0
         self._place__food()
+
+        # Initial game start time and max game time in seconds
+        self.game_start_time = time.time()
+        self.max_game_time = 30  # Max game time in seconds
+        self.eat_timer = self.game_start_time
+        self.eat_timer_max = 5  # 5 seconds timer after eating food
 
     def _place__food(self):
         x = x_array[self.x_index] * 20
@@ -73,6 +82,16 @@ class SnakeGame:
                 elif event.key == pygame.K_DOWN:
                     self.direction = Direction.DOWN
 
+        # Check if total game time exceeded
+        elapsed_time = time.time() - self.game_start_time
+        if elapsed_time > self.max_game_time:
+            return True, self.score
+
+        # Check if food timer is up
+        elapsed_eat_time = time.time() - self.eat_timer
+        if elapsed_eat_time > self.eat_timer_max:
+            return True, self.score
+
         # Move
         self._move(self.direction)
         self.snake.insert(0, self.head)
@@ -90,24 +109,40 @@ class SnakeGame:
             self.y_index = (self.y_index + 1) % len(y_array)
             self.snake.append(self.food)
             self._place__food()
+
+            # Reset food timer when food is eaten
+            self.eat_timer = time.time() + 5
         else:
             self.snake.pop()
 
         # Update UI and clock
-        self._update_ui()
+        self._update_ui(elapsed_time, elapsed_eat_time)
         self.clock.tick(SPEED)
 
         # Return game over and display score
         return game_over, self.score
 
-    def _update_ui(self):
+    def _update_ui(self, elapsed_time, elapsed_eat_time):
         self.display.fill(BLACK)
         for pt in self.snake:
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
-        text = font.render("Score: " + str(self.score), True, WHITE)
-        self.display.blit(text, [0, 0])
+
+        score_text = "Score: " + str(self.score)
+        score_surface = font.render(score_text, True, WHITE)
+        self.display.blit(score_surface, [0, 0])
+
+        remaining_game_time = self.max_game_time - int(elapsed_time)
+        game_time_text = "Total game time left: " + str(remaining_game_time)
+        game_time_surface = font.render(game_time_text, True, WHITE)
+        self.display.blit(game_time_surface, [0, 30])
+
+        remaining_eat_time = self.eat_timer_max - int(elapsed_eat_time)
+        eat_time_text = "Food time left: " + str(remaining_eat_time)
+        eat_time_surface = font.render(eat_time_text, True, WHITE)
+        self.display.blit(eat_time_surface, [0, 60])
+
         pygame.display.flip()
 
     def _move(self, direction):
@@ -125,10 +160,10 @@ class SnakeGame:
 
     def _is_collision(self):
         if (
-            self.head.x > self.w - BLOCK_SIZE
-            or self.head.x < 0
-            or self.head.y > self.h - BLOCK_SIZE
-            or self.head.y < 0
+                self.head.x > self.w - BLOCK_SIZE
+                or self.head.x < 0
+                or self.head.y > self.h - BLOCK_SIZE
+                or self.head.y < 0
         ):
             return True
         if self.head in self.snake[1:]:
